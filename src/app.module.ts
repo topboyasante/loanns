@@ -6,6 +6,7 @@ import { RequestIdMiddleware } from '@/common/middleware/request-id.middleware';
 import { ConfigModule } from './core/config/config.module';
 import { DatabaseModule } from './core/database/database.module';
 import { RedisModule } from './core/redis/redis.module';
+import { LoansModule } from './modules/loans/loans.module.js';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { RedisModule } from './core/redis/redis.module';
     LoggerModule.forRoot(),
     DatabaseModule,
     RedisModule,
+    LoansModule,
   ],
   controllers: [AppController],
   providers: [AppService],
