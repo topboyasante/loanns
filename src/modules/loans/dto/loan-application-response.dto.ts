@@ -38,6 +38,9 @@ export class LoanApplicationResponseDto {
   @ApiProperty({ enum: LoanApplicationState })
   state: LoanApplicationState;
 
+  @ApiPropertyOptional({ description: 'Reason given when the application was rejected' })
+  rejectionReason: string | null;
+
   @ApiProperty()
   createdAt: Date;
 

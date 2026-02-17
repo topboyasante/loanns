@@ -38,6 +38,10 @@ export class LoanApplication {
   })
   state: LoanApplicationState;
 
+  /** Reason given when the application was rejected (if any). */
+  @Column({ name: 'rejection_reason', type: 'varchar', length: 500, nullable: true })
+  rejectionReason: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

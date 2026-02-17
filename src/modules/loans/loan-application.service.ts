@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -10,26 +9,16 @@ import { LoanApplication } from './entities/loan-application.entity.js';
 import { LoanApplicationState } from './entities/loan-application-state.enum.js';
 import { CreateLoanApplicationDto } from './dto/create-loan-application.dto.js';
 import type { PaginationMeta } from '@/common/interfaces/api.interface.js';
-import { RedisService } from '../../core/redis/redis.service.js';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
-const IDEMPOTENCY_TTL_SEC = 86400; // 24h
-const IDEMPOTENCY_KEY_PREFIX = 'idempotency:';
-
-interface IdempotencyEntry {
-  applicationId: string;
-  action: 'approve' | 'reject';
-  application: LoanApplication;
-}
 
 @Injectable()
 export class LoanApplicationService {
   constructor(
     @InjectRepository(LoanApplication)
     private readonly repo: Repository<LoanApplication>,
-    private readonly redis: RedisService,
   ) {}
 
   async create(dto: CreateLoanApplicationDto): Promise<LoanApplication> {
@@ -92,19 +81,7 @@ export class LoanApplicationService {
     return { data, meta };
   }
 
-  async approve(id: string, idempotencyKey?: string): Promise<LoanApplication> {
-    if (idempotencyKey) {
-      const cached = await this.getCachedIdempotency(idempotencyKey);
-      if (cached) {
-        if (cached.applicationId !== id || cached.action !== 'approve') {
-          throw new ConflictException(
-            'Idempotency key already used for a different request',
-          );
-        }
-        return cached.application as LoanApplication;
-      }
-    }
-
+  async approve(id: string): Promise<LoanApplication> {
     const application = await this.findById(id);
     if (application.state !== LoanApplicationState.CREDIT_PASSED) {
       throw new BadRequestException(
@@ -112,27 +89,10 @@ export class LoanApplicationService {
       );
     }
     application.state = LoanApplicationState.APPROVED;
-    const saved = await this.repo.save(application);
-
-    if (idempotencyKey) {
-      await this.setCachedIdempotency(idempotencyKey, id, 'approve', saved);
-    }
-    return saved;
+    return this.repo.save(application);
   }
 
-  async reject(id: string, reason?: string, idempotencyKey?: string): Promise<LoanApplication> {
-    if (idempotencyKey) {
-      const cached = await this.getCachedIdempotency(idempotencyKey);
-      if (cached) {
-        if (cached.applicationId !== id || cached.action !== 'reject') {
-          throw new ConflictException(
-            'Idempotency key already used for a different request',
-          );
-        }
-        return cached.application as LoanApplication;
-      }
-    }
-
+  async reject(id: string, reason?: string): Promise<LoanApplication> {
     const application = await this.findById(id);
     if (
       application.state === LoanApplicationState.APPROVED ||
@@ -141,39 +101,7 @@ export class LoanApplicationService {
       throw new BadRequestException('Rejection is final and cannot be reversed');
     }
     application.state = LoanApplicationState.REJECTED;
-    const saved = await this.repo.save(application);
-
-    if (idempotencyKey) {
-      await this.setCachedIdempotency(idempotencyKey, id, 'reject', saved);
-    }
-    return saved;
-  }
-
-  private async getCachedIdempotency(key: string): Promise<IdempotencyEntry | null> {
-    const raw = await this.redis.get(IDEMPOTENCY_KEY_PREFIX + key);
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw) as IdempotencyEntry;
-    } catch {
-      return null;
-    }
-  }
-
-  private async setCachedIdempotency(
-    key: string,
-    applicationId: string,
-    action: 'approve' | 'reject',
-    application: LoanApplication,
-  ): Promise<void> {
-    const entry: IdempotencyEntry = {
-      applicationId,
-      action,
-      application: application as LoanApplication,
-    };
-    await this.redis.set(
-      IDEMPOTENCY_KEY_PREFIX + key,
-      JSON.stringify(entry, (k, v) => (k === 'loanApplication' ? undefined : v)),
-      IDEMPOTENCY_TTL_SEC,
-    );
+    application.rejectionReason = reason ?? null;
+    return this.repo.save(application);
   }
 }

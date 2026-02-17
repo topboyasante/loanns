@@ -5,7 +5,6 @@ import {
   Body,
   Param,
   Query,
-  Headers,
   ParseUUIDPipe,
   ParseIntPipe,
   DefaultValuePipe,
@@ -71,31 +70,25 @@ export class LoanApplicationsController {
   }
 
   @Post(':id/approve')
-  @ApiOperation({ summary: 'Approve application (only if credit passed). Supports Idempotency-Key header.' })
+  @ApiOperation({ summary: 'Approve application (only if credit passed)' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'OK', type: LoanApplicationResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid state for approval' })
   @ApiResponse({ status: 404, description: 'Not found' })
-  @ApiResponse({ status: 409, description: 'Idempotency key already used for different request' })
-  approve(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Headers('idempotency-key') idempotencyKey?: string,
-  ) {
-    return this.loanApplicationService.approve(id, idempotencyKey);
+  approve(@Param('id', ParseUUIDPipe) id: string) {
+    return this.loanApplicationService.approve(id);
   }
 
   @Post(':id/reject')
-  @ApiOperation({ summary: 'Reject application (final, cannot be reversed). Supports Idempotency-Key header.' })
+  @ApiOperation({ summary: 'Reject application (final, cannot be reversed)' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'OK', type: LoanApplicationResponseDto })
   @ApiResponse({ status: 400, description: 'Rejection is final' })
   @ApiResponse({ status: 404, description: 'Not found' })
-  @ApiResponse({ status: 409, description: 'Idempotency key already used for different request' })
   reject(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: RejectLoanDto,
-    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
-    return this.loanApplicationService.reject(id, body?.reason, idempotencyKey);
+    return this.loanApplicationService.reject(id, body?.reason);
   }
 }

@@ -298,17 +298,11 @@ curl -X POST "http://localhost:3000/api/v1/loan-applications/550e8400-e29b-41d4-
 
 ### 5. Approve application
 
-Marks the application as **APPROVED**. Only allowed when state is **CREDIT_PASSED**. Supports **idempotency**: send an optional `Idempotency-Key` header (e.g. UUID); duplicate requests with the same key for the same application return the same response without changing state.
+Marks the application as **APPROVED**. Only allowed when state is **CREDIT_PASSED**.
 
 - **Method:** `POST`
 - **Path:** `/api/v1/loan-applications/:id/approve`
 - **Body:** None
-
-**Headers (optional)**
-
-| Name | Description |
-|------|-------------|
-| Idempotency-Key | Unique key (e.g. UUID) for this logical request. If repeated with same key and same `id`, returns cached response (24h TTL). |
 
 **Path parameters**
 
@@ -322,30 +316,22 @@ Marks the application as **APPROVED**. Only allowed when state is **CREDIT_PASSE
 **Error responses**
 - `400` — Invalid state for approval (e.g. "Only loan applications that have passed credit assessment can be approved").
 - `404` — Loan application not found.
-- `409` — Idempotency key was already used for a different application or action.
 
 **Example request**
 
 ```bash
-curl -X POST "http://localhost:3000/api/v1/loan-applications/550e8400-e29b-41d4-a716-446655440000/approve" \
-  -H "Idempotency-Key: 550e8400-e29b-41d4-a716-446655440099"
+curl -X POST "http://localhost:3000/api/v1/loan-applications/550e8400-e29b-41d4-a716-446655440000/approve"
 ```
 
 ---
 
 ### 6. Reject application
 
-Marks the application as **REJECTED**. Allowed only when state is **DRAFT** or **CREDIT_PASSED**. Rejection is final and cannot be reversed. Supports **idempotency**: send an optional `Idempotency-Key` header; duplicate requests with the same key for the same application return the same response without changing state.
+Marks the application as **REJECTED**. Allowed only when state is **DRAFT** or **CREDIT_PASSED**. Rejection is final and cannot be reversed.
 
 - **Method:** `POST`
 - **Path:** `/api/v1/loan-applications/:id/reject`
 - **Headers:** `Content-Type: application/json` (when body is sent)
-
-**Headers (optional)**
-
-| Name | Description |
-|------|-------------|
-| Idempotency-Key | Unique key (e.g. UUID) for this logical request. If repeated with same key and same `id`, returns cached response (24h TTL). |
 
 **Path parameters**
 
@@ -365,7 +351,6 @@ Marks the application as **REJECTED**. Allowed only when state is **DRAFT** or *
 **Error responses**
 - `400` — Application already in a final state (e.g. "Rejection is final and cannot be reversed").
 - `404` — Loan application not found.
-- `409` — Idempotency key was already used for a different application or action.
 
 **Example request (with reason)**
 
