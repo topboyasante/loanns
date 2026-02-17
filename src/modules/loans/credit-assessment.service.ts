@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { LoanApplication } from './entities/loan-application.entity.js';
 import { CreditAssessment } from './entities/credit-assessment.entity.js';
 import { LoanApplicationState } from './entities/loan-application-state.enum.js';
@@ -17,6 +17,7 @@ export class CreditAssessmentService {
     private readonly loanRepo: Repository<LoanApplication>,
     @InjectRepository(CreditAssessment)
     private readonly assessmentRepo: Repository<CreditAssessment>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async runCreditAssessment(applicationId: string): Promise<LoanApplication> {
@@ -33,27 +34,49 @@ export class CreditAssessmentService {
     const monthlyIncomeCents = Number(application.monthlyIncome);
     const requestedCents = Number(application.requestedLoanAmount);
     const tenor = application.tenorInMonths;
+
+    // Ensure loan amount is at least equal to tenor to prevent $0/month installments
+    // this will prevent us from having installments looking like $4/6 per month
+    if (requestedCents < tenor) {
+      throw new BadRequestException(
+        'Requested loan amount must be at least equal to the tenor in months',
+      );
+    }
+
     const monthlyInstallmentCents = Math.floor(requestedCents / tenor);
     const pass = monthlyIncomeCents >= 3 * monthlyInstallmentCents;
 
-    const assessment = this.assessmentRepo.create({
-      loanApplicationId: application.id,
-      result: pass ? CreditAssessmentResult.PASS : CreditAssessmentResult.FAIL,
-      monthlyInstallment: String(monthlyInstallmentCents),
-      rejectionReason: pass
-        ? null
-        : 'Monthly income is less than 3× the monthly installment',
-    });
-    await this.assessmentRepo.save(assessment);
+    // Use transaction to ensure atomicity: either both assessment and state update succeed, or both rollback
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const assessment = manager.create(CreditAssessment, {
+          loanApplicationId: application.id,
+          result: pass ? CreditAssessmentResult.PASS : CreditAssessmentResult.FAIL,
+          monthlyInstallment: String(monthlyInstallmentCents),
+          rejectionReason: pass
+            ? null
+            : 'Monthly income is less than 3× the monthly installment',
+        });
+        await manager.save(CreditAssessment, assessment);
 
-    application.state = pass
-      ? LoanApplicationState.CREDIT_PASSED
-      : LoanApplicationState.REJECTED;
-    await this.loanRepo.save(application);
+        application.state = pass
+          ? LoanApplicationState.CREDIT_PASSED
+          : LoanApplicationState.REJECTED;
+        await manager.save(LoanApplication, application);
 
-    return this.loanRepo.findOneOrFail({
-      where: { id: applicationId },
-      relations: ['creditAssessment'],
-    });
+        return manager.findOneOrFail(LoanApplication, {
+          where: { id: applicationId },
+          relations: ['creditAssessment'],
+        });
+      });
+    } catch (error: any) {
+      // Handle race condition: if another request already created an assessment (unique constraint violation)
+      if (error?.code === '23505' && error?.constraint?.includes('credit_assessments')) {
+        throw new BadRequestException(
+          'Credit assessment is already in progress or completed for this application',
+        );
+      }
+      throw error;
+    }
   }
 }

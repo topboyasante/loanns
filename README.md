@@ -75,6 +75,16 @@ The API is available at `http://localhost:3000`. Default port can be overridden 
 | `pnpm run test:cov` | Test coverage |
 | `pnpm run lint` | Lint and fix |
 
+## Task Alignment
+
+This implementation addresses the following requirements:
+
+- **Loan application creation**: `POST /api/v1/loan-applications` creates applications that automatically start in `DRAFT` state
+- **Credit assessment**: `POST /api/v1/loan-applications/:id/credit-assessment` implements the 3× income rule (monthly income must be ≥ 3 × monthly installment), returns `PASS` or `FAIL`, and automatically rejects applications that fail
+- **Approval**: `POST /api/v1/loan-applications/:id/approve` only allows approval of applications in `CREDIT_PASSED` state
+- **Rejection**: `POST /api/v1/loan-applications/:id/reject` allows rejection from `DRAFT` or `CREDIT_PASSED` states; rejection is final and cannot be reversed
+- **Persistence design**: Final states (`APPROVED`, `REJECTED`) are immutable at the database level via a PostgreSQL trigger, ensuring data integrity even for direct database access
+
 ## License
 
 UNLICENSED

@@ -46,6 +46,16 @@ export class ORMExceptionFilter implements ExceptionFilter {
         code = 'MISSING_FIELD';
         message = 'A required field is missing.';
         break;
+      case 'P0001': // raise_exception (e.g. final-state immutability trigger)
+        if (
+          exception.message?.includes('Cannot update loan application in final state')
+        ) {
+          status = HttpStatus.BAD_REQUEST;
+          code = 'IMMUTABLE_STATE';
+          message =
+            'This loan application is in a final state and cannot be modified.';
+        }
+        break;
     }
 
     const errorBody: ApiErrorResponse = {

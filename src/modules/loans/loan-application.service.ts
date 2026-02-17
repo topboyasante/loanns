@@ -83,6 +83,17 @@ export class LoanApplicationService {
 
   async approve(id: string): Promise<LoanApplication> {
     const application = await this.findById(id);
+    if (application.state === LoanApplicationState.APPROVED) {
+      throw new BadRequestException('Application is already approved');
+    }
+    if (application.state === LoanApplicationState.REJECTED) {
+      throw new BadRequestException('Cannot approve a rejected application');
+    }
+    if (application.state === LoanApplicationState.DRAFT) {
+      throw new BadRequestException(
+        'Application must pass credit assessment before approval',
+      );
+    }
     if (application.state !== LoanApplicationState.CREDIT_PASSED) {
       throw new BadRequestException(
         'Only loan applications that have passed credit assessment can be approved',
@@ -94,11 +105,11 @@ export class LoanApplicationService {
 
   async reject(id: string, reason?: string): Promise<LoanApplication> {
     const application = await this.findById(id);
-    if (
-      application.state === LoanApplicationState.APPROVED ||
-      application.state === LoanApplicationState.REJECTED
-    ) {
-      throw new BadRequestException('Rejection is final and cannot be reversed');
+    if (application.state === LoanApplicationState.APPROVED) {
+      throw new BadRequestException('Cannot reject an approved application');
+    }
+    if (application.state === LoanApplicationState.REJECTED) {
+      throw new BadRequestException('Application is already rejected');
     }
     application.state = LoanApplicationState.REJECTED;
     application.rejectionReason = reason ?? null;
