@@ -1,7 +1,7 @@
 import { DocumentBuilder } from '@nestjs/swagger';
 
 export const swaggerConfig = new DocumentBuilder()
-  .setTitle('Washking API Documentation')
+  .setTitle('Loanns API Documentation')
   .setDescription('Official Swagger Documentation for the Loanns API')
   .setVersion('1.0')
   .addBearerAuth(

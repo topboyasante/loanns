@@ -7,8 +7,8 @@ import {
   OneToOne,
   Index,
 } from 'typeorm';
-import { LoanApplicationState } from './loan-application-state.enum.js';
-import { CreditAssessment } from './credit-assessment.entity.js';
+import { LoanApplicationState } from './loan-application-state.enum';
+import { CreditAssessment } from './credit-assessment.entity';
 
 @Entity('loan_applications')
 @Index(['state'])

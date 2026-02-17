@@ -6,8 +6,8 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { CreditAssessmentResult } from './credit-assessment-result.enum.js';
-import { LoanApplication } from './loan-application.entity.js';
+import { CreditAssessmentResult } from './credit-assessment-result.enum';
+import { LoanApplication } from './loan-application.entity';
 
 @Entity('credit_assessments')
 export class CreditAssessment {
